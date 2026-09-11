@@ -1,0 +1,1508 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>变量转写器 - 原型 v1.0</title>
+<style>
+  :root {
+    --primary: #2878eb;
+    --primary-hover: #4b91f1;
+    --primary-light: #eaf3ff;
+    --text-1: #1d2129;
+    --text-2: #4e5969;
+    --text-3: #86909c;
+    --line: #e5e6eb;
+    --line-strong: #c9cdd4;
+    --bg: #f2f3f5;
+    --white: #fff;
+    --success: #00b42a;
+    --success-bg: #e8ffea;
+    --warning: #ff7d00;
+    --warning-bg: #fff7e8;
+    --danger: #f53f3f;
+    --danger-bg: #fff1f0;
+    --shadow: 0 8px 24px rgba(29, 33, 41, .08);
+    --sidebar: 220px;
+    --topbar: 50px;
+    --prototype: 44px;
+    font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--text-1); background: var(--bg); font-size: 14px; }
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  .prototype-bar {
+    position: sticky; top: 0; z-index: 1000;
+    min-height: var(--prototype);
+    display: flex; align-items: center; gap: 12px;
+    padding: 7px 20px; color: #3c4657; background: #fff8e6; border-bottom: 1px solid #f2cf7f;
+  }
+  .prototype-badge { display: inline-flex; align-items: center; gap: 6px; flex: none; font-weight: 600; }
+  .prototype-badge::before { content: "◆"; color: #e99b00; font-size: 11px; }
+  .prototype-note { color: #7a642d; font-size: 12px; }
+
+  .topbar {
+    position: fixed; top: var(--prototype); left: 0; right: 0; z-index: 80;
+    height: var(--topbar); display: flex; align-items: center; padding: 0 20px;
+    background: #fff; border-bottom: 1px solid var(--line);
+  }
+  .brand { width: calc(var(--sidebar) - 20px); display: flex; align-items: center; gap: 10px; font-weight: 650; }
+  .brand-mark {
+    width: 32px; height: 32px; display: grid; place-items: center; color: #fff;
+    font-size: 16px; font-weight: 800; background: linear-gradient(145deg, #2168e7, #54a5ff); border-radius: 9px;
+  }
+  .brand-name { font-size: 16px; letter-spacing: .3px; }
+  .topbar-title { color: var(--text-2); }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; color: var(--text-2); }
+  .avatar { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #7a8ca8; font-size: 12px; }
+
+  .sidebar {
+    position: fixed; z-index: 60; top: calc(var(--prototype) + var(--topbar)); bottom: 0; left: 0;
+    width: var(--sidebar); padding: 12px 10px 24px; background: #fff; border-right: 1px solid var(--line); overflow: auto;
+  }
+  .menu-item, .submenu-title, .submenu-item {
+    min-height: 42px; display: flex; align-items: center; gap: 10px; padding: 0 12px; color: var(--text-2); border-radius: 5px;
+  }
+  .menu-item { margin-bottom: 4px; }
+  .menu-icon { width: 18px; text-align: center; color: #64748b; }
+  .submenu-title { margin-top: 4px; color: var(--text-1); font-weight: 500; }
+  .submenu-title .arrow { margin-left: auto; color: var(--text-3); }
+  .submenu-wrap { padding: 2px 0 6px; }
+  .submenu-item { position: relative; padding-left: 40px; margin: 2px 0; }
+  .submenu-item::before { content: ""; position: absolute; left: 24px; width: 4px; height: 4px; border-radius: 50%; background: #c9cdd4; }
+  .submenu-item.active { color: var(--primary); background: var(--primary-light); font-weight: 500; }
+  .submenu-item.active::before { background: var(--primary); }
+
+  .workspace { margin-left: var(--sidebar); padding-top: var(--topbar); min-height: calc(100vh - var(--prototype)); }
+  .tabbar {
+    position: sticky; top: calc(var(--prototype) + var(--topbar)); z-index: 45; height: 40px;
+    display: flex; align-items: end; padding: 0 20px; background: #fff; border-bottom: 1px solid var(--line);
+  }
+  .tab { height: 38px; display: flex; align-items: center; padding: 0 16px; color: var(--primary); border-bottom: 2px solid var(--primary); }
+  .content { max-width: 1400px; margin: 0 auto; padding: 18px 24px 40px; }
+  .breadcrumb { margin-bottom: 14px; color: var(--text-3); font-size: 13px; }
+  .breadcrumb span:last-child { color: var(--text-1); }
+  .page-heading { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 16px; }
+  .page-title { margin: 0; font-size: 20px; line-height: 30px; }
+  .page-subtitle { margin-top: 4px; color: var(--text-3); font-size: 13px; }
+
+  .alert {
+    display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; padding: 12px 14px;
+    line-height: 22px; color: #345d91; background: #f0f7ff; border: 1px solid #bedaff; border-radius: 4px;
+  }
+  .alert-icon {
+    flex: none; width: 18px; height: 18px; margin-top: 2px; display: grid; place-items: center;
+    color: #fff; background: var(--primary); border-radius: 50%; font-size: 12px; font-weight: 700;
+  }
+  .alert strong { color: #214f87; }
+
+  .card { margin-bottom: 16px; background: #fff; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 1px 2px rgba(29, 33, 41, .02); }
+  .card-header { min-height: 54px; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #f0f1f2; }
+  .card-title { font-size: 16px; font-weight: 600; }
+  .card-description { margin-left: 12px; color: var(--text-3); font-size: 12px; }
+  .card-body { padding: 20px; }
+
+  .split { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 1180px) { .split { grid-template-columns: minmax(0, 1fr); } }
+
+  .form-stack { display: flex; flex-direction: column; gap: 18px; }
+  .field-label { display: flex; align-items: center; gap: 4px; min-height: 20px; margin-bottom: 7px; color: var(--text-2); font-size: 13px; }
+  .required { color: var(--danger); }
+  .control, .textarea {
+    width: 100%; color: var(--text-1); background: #fff; border: 1px solid var(--line-strong);
+    border-radius: 4px; outline: none; transition: border-color .15s, box-shadow .15s;
+  }
+  .control { height: 36px; padding: 0 11px; }
+  select.control { padding-right: 30px; }
+  .control:hover:not(:disabled), .textarea:hover:not(:disabled) { border-color: #8fa7c6; }
+  .control:focus, .textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(40, 120, 235, .12); }
+  .control:disabled { color: #7d8794; background: #f5f6f7; cursor: not-allowed; }
+  .control.invalid { border-color: var(--danger); box-shadow: 0 0 0 2px rgba(245, 63, 63, .08); }
+  .field-help { margin-top: 5px; color: var(--text-3); font-size: 12px; line-height: 18px; }
+  .field-error { margin-top: 5px; color: var(--danger); font-size: 12px; }
+
+  .radio-group { min-height: 36px; display: flex; align-items: center; gap: 22px; }
+  .radio { display: inline-flex; align-items: center; gap: 7px; color: var(--text-2); cursor: pointer; }
+  .radio input { accent-color: var(--primary); width: 15px; height: 15px; }
+
+  .switch-row { min-height: 36px; display: flex; align-items: center; gap: 10px; }
+  .switch { position: relative; width: 40px; height: 22px; display: inline-block; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch-slider { position: absolute; inset: 0; background: #c9cdd4; border-radius: 11px; transition: .2s; }
+  .switch-slider::before { content: ""; position: absolute; width: 18px; height: 18px; left: 2px; top: 2px; background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: .2s; }
+  .switch input:checked + .switch-slider { background: var(--primary); }
+  .switch input:checked + .switch-slider::before { transform: translateX(18px); }
+  .switch-row label { color: var(--text-2); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+  .chip {
+    height: 24px; padding: 0 9px; display: inline-flex; align-items: center; color: var(--text-2);
+    background: #f7f8fa; border: 1px solid var(--line); border-radius: 3px; font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .chip:hover { color: var(--primary); border-color: #aecdf6; background: var(--primary-light); }
+
+  .btn {
+    height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 0 14px; color: var(--text-2); background: #fff; border: 1px solid var(--line-strong);
+    border-radius: 4px; transition: .15s;
+  }
+  .btn:hover:not(:disabled) { color: var(--primary); border-color: var(--primary); }
+  .btn-primary { color: #fff; background: var(--primary); border-color: var(--primary); }
+  .btn-primary:hover:not(:disabled) { color: #fff; background: var(--primary-hover); border-color: var(--primary-hover); }
+  .btn:disabled { opacity: .48; cursor: not-allowed; }
+  .form-actions { display: flex; gap: 10px; padding-top: 2px; }
+
+  .status-tag { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: 3px; font-size: 12px; font-weight: 500; }
+  .status-tag.ok { color: #078525; background: var(--success-bg); }
+  .status-tag.warn { color: #b56a00; background: var(--warning-bg); }
+  .status-tag.muted { color: #4e5969; background: #f2f3f5; }
+  .status-tag.err { color: #d92b2b; background: var(--danger-bg); }
+
+  .result-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .result-head .spacer { margin-left: auto; }
+
+  .output-box {
+    padding: 16px 18px; background: #f7f9fc; border: 1px solid #e3ebf5; border-radius: 6px;
+  }
+  .output-label { color: var(--text-3); font-size: 12px; margin-bottom: 8px; }
+  .output-text {
+    font-size: 19px; line-height: 32px; font-weight: 600; color: var(--text-1);
+    word-break: break-word; white-space: pre-wrap;
+  }
+  .output-text.empty { color: var(--text-3); font-weight: 400; font-size: 14px; }
+  .roman-row { margin-top: 12px; padding-top: 12px; border-top: 1px dashed #d6e2f0; }
+  .roman-text { color: #5b6b80; font-size: 15px; line-height: 26px; font-style: italic; word-break: break-word; }
+  .output-actions { margin-top: 12px; display: flex; gap: 8px; }
+
+  .kv-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  .kv-table th, .kv-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid #f0f1f2; vertical-align: top; }
+  .kv-table th { width: 148px; color: var(--text-2); font-weight: 500; background: #fafbfc; }
+  .kv-table td { color: var(--text-1); word-break: break-word; }
+  .kv-table tr:last-child th, .kv-table tr:last-child td { border-bottom: 0; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .muted { color: var(--text-3); }
+
+  .hint {
+    margin-top: 14px; padding: 10px 12px; border-radius: 4px; font-size: 13px; line-height: 21px;
+    color: #8a6200; background: var(--warning-bg); border: 1px solid #ffe0b3;
+  }
+  .hint.danger { color: #c02a2a; background: var(--danger-bg); border-color: #ffcfcf; }
+
+  .rule-table { width: 100%; border-collapse: collapse; }
+  .rule-table th, .rule-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid #f0f1f2; font-size: 13px; }
+  .rule-table th { color: var(--text-2); font-weight: 500; background: #fafbfc; }
+  .rule-table tr:last-child td { border-bottom: 0; }
+  .rule-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border-radius: 3px; font-size: 12px; white-space: nowrap; }
+  .rule-tag.keep { color: #078525; background: var(--success-bg); }
+  .rule-tag.new { color: #214f87; background: var(--primary-light); }
+  .rule-tag.todo { color: #b56a00; background: var(--warning-bg); }
+
+  .matrix { border-collapse: collapse; font-size: 12px; }
+  .matrix th, .matrix td { padding: 6px 10px; border: 1px solid var(--line); text-align: center; }
+  .matrix th { background: #fafbfc; color: var(--text-2); font-weight: 500; }
+  .matrix td.yes { color: var(--success); background: var(--success-bg); }
+  .matrix td.no { color: #b6bcc6; background: #fafbfc; }
+  .matrix td .lang { color: var(--text-1); font-size: 12px; }
+  .subheading { margin: 22px 0 10px; font-size: 14px; font-weight: 600; }
+  .subheading:first-child { margin-top: 0; }
+</style>
+</head>
+<body>
+
+<div class="prototype-bar">
+  <span class="prototype-badge">原型演示</span>
+  <span class="prototype-note">变量转写器 v1.0 · 全部转写逻辑在前端本地计算，用于核对各国家 × 语言的播报文本，不接真实接口</span>
+</div>
+
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">A</span><span class="brand-name">AICC</span></div>
+    <div class="topbar-title">系统设置</div>
+    <div class="topbar-right"><span>运营演示账号</span><span class="avatar">OP</span></div>
+  </header>
+
+  <aside class="sidebar" aria-label="主导航">
+    <div class="menu-item"><span class="menu-icon">▦</span><span>概览</span></div>
+    <div class="menu-item"><span class="menu-icon">◎</span><span>外呼管理</span></div>
+    <div class="menu-item"><span class="menu-icon">✉</span><span>短信管理</span></div>
+    <div class="menu-item"><span class="menu-icon">☰</span><span>系统设置</span></div>
+    <div class="submenu-wrap">
+      <div class="submenu-item">国家地区管理</div>
+      <div class="submenu-item">语言管理</div>
+      <div class="submenu-item">变量类型</div>
+      <div class="submenu-item active">变量转写器</div>
+    </div>
+  </aside>
+
+  <main class="workspace">
+    <div class="tabbar"><div class="tab">变量转写器</div></div>
+
+    <div class="content">
+      <div class="breadcrumb"><span>系统设置</span> / <span>变量类型</span> / <span>变量转写器</span></div>
+
+      <div class="page-heading">
+        <div>
+          <h1 class="page-title">变量转写器</h1>
+          <div class="page-subtitle">选择国家地区、语言、渠道与变量类型，输入变量值，查看送 TTS 合成前实际会播报的文本</div>
+        </div>
+      </div>
+
+      <div class="alert">
+        <span class="alert-icon">i</span>
+        <div>
+          <strong>转写口径：</strong>数字读法跟随<strong>话术语言 / 短信 locale</strong>，货币单位跟随<strong>商户国家地区</strong>并已按语言分别维护。
+          输出区展示的是送 TTS 的<strong>原生文本</strong>；拉丁音译仅作为人工核对辅助，需要时点击按钮展开。
+        </div>
+      </div>
+
+      <div class="split">
+        <!-- ============ 输入区 ============ -->
+        <section class="card">
+          <div class="card-header"><span class="card-title">转写配置</span></div>
+          <div class="card-body">
+            <div class="form-stack">
+
+              <div>
+                <div class="field-label">渠道<span class="required">*</span></div>
+                <div class="radio-group">
+                  <label class="radio"><input type="radio" name="channel" value="SPEECH" checked><span>话术播报</span></label>
+                  <label class="radio"><input type="radio" name="channel" value="SMS"><span>短信</span></label>
+                </div>
+                <div class="field-help" id="channelHelp"></div>
+              </div>
+
+              <div>
+                <div class="field-label">国家地区<span class="required">*</span></div>
+                <select class="control" id="countrySelect"></select>
+                <div class="field-help" id="countryHelp"></div>
+              </div>
+
+              <div>
+                <div class="field-label">语言<span class="required">*</span></div>
+                <select class="control" id="langSelect"></select>
+                <div class="switch-row" style="margin-top:8px">
+                  <label class="switch"><input type="checkbox" id="forceLang"><span class="switch-slider"></span></label>
+                  <label for="forceLang">强制指定语言（用于验证跨语言组合与配置缺失场景）</label>
+                </div>
+                <div class="field-help" id="langHelp"></div>
+              </div>
+
+              <div>
+                <div class="field-label">变量类型<span class="required">*</span></div>
+                <select class="control" id="typeSelect">
+                  <option value="MONEY">MONEY 金额</option>
+                  <option value="DATE">DATE 日期</option>
+                  <option value="NUMBER">NUMBER 数字</option>
+                  <option value="LINK">LINK 链接</option>
+                  <option value="TEXT">TEXT 文本</option>
+                </select>
+                <div class="field-help" id="typeHelp"></div>
+              </div>
+
+              <div>
+                <div class="field-label">变量值<span class="required">*</span></div>
+                <input class="control" id="valueInput" autocomplete="off">
+                <div class="field-error" id="valueError" hidden></div>
+                <div class="chips" id="sampleChips"></div>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn btn-primary" id="runBtn">输出转写结果</button>
+                <button class="btn" id="resetBtn">重置</button>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 结果区 ============ -->
+        <div>
+          <section class="card">
+            <div class="card-header">
+              <span class="card-title">转写结果</span>
+              <span class="card-description" id="resultSummary">尚未执行</span>
+            </div>
+            <div class="card-body">
+              <div class="result-head">
+                <span class="status-tag muted" id="sourceTag">等待输出</span>
+                <span class="status-tag muted" id="langTag"></span>
+                <span class="spacer"></span>
+                <button class="btn" id="romanBtn" disabled>显示拉丁音译</button>
+              </div>
+
+              <div class="output-box">
+                <div class="output-label">送 TTS 合成文本（原生文字）</div>
+                <div class="output-text empty" id="nativeOut">点击左侧「输出转写结果」后展示</div>
+                <div class="roman-row" id="romanRow" hidden>
+                  <div class="output-label">拉丁音译（仅人工核对，不送 TTS）</div>
+                  <div class="roman-text" id="romanOut"></div>
+                </div>
+              </div>
+
+              <div class="hint" id="resultHint" hidden></div>
+
+              <div class="output-actions">
+                <button class="btn" id="copyBtn" disabled>复制结果</button>
+              </div>
+
+              <table class="kv-table" id="detailTable" hidden></table>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <span class="card-title">规则说明</span>
+              <span class="card-description">当前配置命中的处理规则与来源</span>
+            </div>
+            <div class="card-body">
+              <table class="rule-table" id="ruleTable"></table>
+
+              <div class="subheading">国家地区 × 语言 币种单位配置矩阵</div>
+              <div class="field-help" style="margin-bottom:10px">✔ 表示该国家已按该语言维护货币单位；空白表示未配置，选中后输出将不拼接货币单位。</div>
+              <div style="overflow:auto"><table class="matrix" id="matrixTable"></table></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+ * 变量转写引擎（与后端首期语言策略对齐，纯前端本地计算）
+ * ============================================================ */
+
+/* ---------------- 通用 ---------------- */
+// 去尾零；不合法（负数、非数字、空）返回 null
+function stripTrailingZeros(raw) {
+  var s = String(raw == null ? '' : raw).trim().replace(/,/g, '');
+  if (s === '') return null;
+  if (!/^-?\d+(\.\d+)?$/.test(s)) return null;
+  if (s.charAt(0) === '-') return null;
+  if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s;
+}
+function splitNumber(s) {
+  var parts = s.split('.');
+  var intPart = parts[0] || '0';
+  var decPart = parts[1] || '';
+  if (intPart.length > 1) intPart = intPart.replace(/^0+/, '') || '0';
+  return { int: intPart, dec: decPart };
+}
+
+/* ---------------- 印度尼西亚语 id ---------------- */
+var ID_SAT = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan'];
+var ID_BEL = ['sepuluh', 'sebelas', 'dua belas', 'tiga belas', 'empat belas', 'lima belas',
+  'enam belas', 'tujuh belas', 'delapan belas', 'sembilan belas'];
+function idUnder1000(x) {
+  var s = '', h = Math.floor(x / 100), r = x % 100;
+  if (h > 0) { s += (h === 1 ? 'seratus' : ID_SAT[h] + ' ratus'); if (r) s += ' '; }
+  if (r > 0) {
+    if (r < 10) s += ID_SAT[r];
+    else if (r < 20) s += ID_BEL[r - 10];
+    else { var t = Math.floor(r / 10), u = r % 10; s += ID_SAT[t] + ' puluh' + (u ? ' ' + ID_SAT[u] : ''); }
+  }
+  return s;
+}
+function idWords(n) {
+  if (n === 0) return 'nol';
+  var groups = [[1e12, 'triliun'], [1e9, 'miliar'], [1e6, 'juta'], [1e3, 'ribu']];
+  var out = [], rest = n;
+  for (var i = 0; i < groups.length; i++) {
+    var v = groups[i][0], name = groups[i][1], g = Math.floor(rest / v);
+    if (g > 0) {
+      if (name === 'ribu' && g === 1) out.push('seribu');
+      else if (g < 1000) out.push(idUnder1000(g) + ' ' + name);
+      else out.push(idWords(g) + ' ' + name);
+    }
+    rest %= v;
+  }
+  if (rest > 0) out.push(idUnder1000(rest));
+  return out.join(' ');
+}
+
+/* ---------------- 英语 en ---------------- */
+var EN_ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+var EN_TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+function enUnder1000(x) {
+  var s = '', h = Math.floor(x / 100), r = x % 100;
+  if (h > 0) { s += EN_ONES[h] + ' hundred'; if (r) s += ' and '; }
+  if (r > 0) {
+    if (r < 20) s += EN_ONES[r];
+    else { var t = Math.floor(r / 10), u = r % 10; s += EN_TENS[t] + (u ? '-' + EN_ONES[u] : ''); }
+  }
+  return s;
+}
+function enWords(n) {
+  if (n === 0) return 'zero';
+  var groups = [[1e12, 'trillion'], [1e9, 'billion'], [1e6, 'million'], [1e3, 'thousand']];
+  var out = [], rest = n;
+  for (var i = 0; i < groups.length; i++) {
+    var v = groups[i][0], name = groups[i][1], g = Math.floor(rest / v);
+    if (g > 0) out.push((g < 1000 ? enUnder1000(g) : enWords(g)) + ' ' + name);
+    rest %= v;
+  }
+  if (rest > 0) out.push(enUnder1000(rest));
+  return out.join(' ');
+}
+
+/* ---------------- 印度英语 en-IN（lakh / crore） ---------------- */
+function enINUnder100(x) {
+  if (x < 20) return EN_ONES[x];
+  var t = Math.floor(x / 10), u = x % 10;
+  return EN_TENS[t] + (u ? '-' + EN_ONES[u] : '');
+}
+function enINWords(n) {
+  if (n === 0) return 'zero';
+  var crore = Math.floor(n / 1e7), r1 = n % 1e7;
+  var lakh = Math.floor(r1 / 1e5), r2 = r1 % 1e5;
+  var thousand = Math.floor(r2 / 1e3), r3 = r2 % 1e3;
+  var hundred = Math.floor(r3 / 100), rest = r3 % 100;
+  var out = [];
+  if (crore) out.push((crore < 100 ? enINUnder100(crore) : enINWords(crore)) + ' crore');
+  if (lakh) out.push(enINUnder100(lakh) + ' lakh');
+  if (thousand) out.push(enINUnder100(thousand) + ' thousand');
+  if (hundred) out.push(EN_ONES[hundred] + ' hundred');
+  if (rest) out.push(enINUnder100(rest));
+  return out.join(' ');
+}
+
+/* ---------------- 菲律宾语 fil ---------------- */
+var FIL_ONES = ['', 'isa', 'dalawa', 'tatlo', 'apat', 'lima', 'anim', 'pito', 'walo', 'siyam'];
+var FIL_TENS = ['', 'sampu', 'dalawampu', 'tatlumpu', 'apatnapu', 'limampu', 'animnapu', 'pitumpu', 'walumpu', 'siyamnapu'];
+function filTeens(u) {
+  var w = FIL_ONES[u];
+  if (/^[aeiou]/.test(w)) return 'labing-' + w;
+  if (w.charAt(0) === 'w') return 'labing' + w;
+  return (w.charAt(0) === 'p' ? 'labim' : 'labin') + w;
+}
+function filLink(phrase) {
+  var parts = phrase.split(' ');
+  var last = parts[parts.length - 1];
+  if (/[aeiou]$/.test(last)) last += 'ng';
+  else if (/n$/.test(last)) last += 'g';
+  else last += ' na';
+  parts[parts.length - 1] = last;
+  return parts.join(' ');
+}
+function filUnder100(x) {
+  if (x === 0) return '';
+  if (x < 10) return FIL_ONES[x];
+  if (x === 10) return 'sampu';
+  if (x < 20) return filTeens(x - 10);
+  var t = Math.floor(x / 10), u = x % 10;
+  return FIL_TENS[t] + (u ? "'t " + FIL_ONES[u] : '');
+}
+function filUnder1000(x) {
+  var h = Math.floor(x / 100), r = x % 100, s = '';
+  if (h > 0) s = filLink(filUnder100(h)) + ' daan';
+  if (r > 0) s += (h > 0 ? ' at ' : '') + filUnder100(r);
+  return s;
+}
+function filWords(n) {
+  if (n === 0) return 'sero';
+  var groups = [[1e9, 'bilyon'], [1e6, 'milyon'], [1e3, 'libo']];
+  var out = [], rest = n;
+  for (var i = 0; i < groups.length; i++) {
+    var v = groups[i][0], name = groups[i][1], g = Math.floor(rest / v);
+    if (g > 0) out.push(filLink(g < 1000 ? filUnder1000(g) : filWords(g)) + ' ' + name);
+    rest %= v;
+  }
+  if (rest > 0) out.push(filUnder1000(rest));
+  return out.join(' ');
+}
+
+/* ---------------- 西班牙语 es ---------------- */
+var ES_ONES = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve',
+  'diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve',
+  'veinte', 'veintiuno', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve'];
+var ES_TENS = ['', '', '', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+var ES_HUNDREDS = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos',
+  'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+function esUnder1000(x) {
+  if (x === 0) return '';
+  if (x === 100) return 'cien';
+  var h = Math.floor(x / 100), r = x % 100, s = '';
+  if (h > 0) s = ES_HUNDREDS[h];
+  if (r > 0) {
+    if (r <= 29) s += (h > 0 ? ' ' : '') + ES_ONES[r];
+    else { var t = Math.floor(r / 10), u = r % 10; s += (h > 0 ? ' ' : '') + ES_TENS[t] + (u ? ' y ' + ES_ONES[u] : ''); }
+  }
+  return s;
+}
+function esUnder1e6(x) {
+  if (x === 0) return '';
+  var th = Math.floor(x / 1000), r = x % 1000, s = '';
+  if (th === 1) s = 'mil';
+  else if (th > 1) s = esUnder1000(th) + ' mil';
+  if (r > 0) s += (s ? ' ' : '') + esUnder1000(r);
+  return s;
+}
+// 西语为长级差：10^6 millón / 10^9 mil millones / 10^12 billón。
+// 百万以上的计数必须递归，否则 10^12 量级会溢出 esUnder1000 的百位表。
+function esWords(n) {
+  if (n === 0) return 'cero';
+  if (n >= 1e12) {
+    var bill = Math.floor(n / 1e12), rb = n % 1e12;
+    return (bill === 1 ? 'un billón' : esWords(bill) + ' billones') + (rb ? ' ' + esWords(rb) : '');
+  }
+  var mill = Math.floor(n / 1e6), r = n % 1e6;
+  if (mill === 0) return esUnder1e6(n);
+  if (mill === 1) return 'un millón' + (r ? ' ' + esUnder1e6(r) : '');
+  return esWords(mill) + ' millones' + (r ? ' ' + esUnder1e6(r) : '');
+}
+function esApocope(w) { return w.replace(/veintiuno$/, 'veintiún').replace(/\buno$/, 'un'); }
+
+/* ---------------- 印地语 hi ---------------- */
+var HI_NATIVE = ['शून्य', 'एक', 'दो', 'तीन', 'चार', 'पाँच', 'छह', 'सात', 'आठ', 'नौ',
+  'दस', 'ग्यारह', 'बारह', 'तेरह', 'चौदह', 'पंद्रह', 'सोलह', 'सत्रह', 'अठारह', 'उन्नीस',
+  'बीस', 'इक्कीस', 'बाईस', 'तेईस', 'चौबीस', 'पच्चीस', 'छब्बीस', 'सत्ताईस', 'अट्ठाईस', 'उनतीस',
+  'तीस', 'इकतीस', 'बत्तीस', 'तैंतीस', 'चौंतीस', 'पैंतीस', 'छत्तीस', 'सैंतीस', 'अड़तीस', 'उनतालीस',
+  'चालीस', 'इकतालीस', 'बयालीस', 'तैंतालीस', 'चवालीस', 'पैंतालीस', 'छियालीस', 'सैंतालीस', 'अड़तालीस', 'उनचास',
+  'पचास', 'इक्यावन', 'बावन', 'तिरेपन', 'चौवन', 'पचपन', 'छप्पन', 'सत्तावन', 'अट्ठावन', 'उनसठ',
+  'साठ', 'इकसठ', 'बासठ', 'तिरेसठ', 'चौंसठ', 'पैंसठ', 'छियासठ', 'सड़सठ', 'अड़सठ', 'उनहत्तर',
+  'सत्तर', 'इकहत्तर', 'बहत्तर', 'तिहत्तर', 'चौहत्तर', 'पचहत्तर', 'छिहत्तर', 'सतहत्तर', 'अठहत्तर', 'उनासी',
+  'अस्सी', 'इक्यासी', 'बयासी', 'तिरासी', 'चौरासी', 'पचासी', 'छियासी', 'सत्तासी', 'अट्ठासी', 'नवासी',
+  'नब्बे', 'इक्यानवे', 'बानवे', 'तिरानवे', 'चौरानवे', 'पचानवे', 'छियानवे', 'सत्तानवे', 'अट्ठानवे', 'निन्यानवे'];
+var HI_ROMAN = ['shunya', 'ek', 'do', 'teen', 'chaar', 'paanch', 'chhah', 'saat', 'aath', 'nau',
+  'das', 'gyarah', 'barah', 'terah', 'chaudah', 'pandrah', 'solah', 'satrah', 'atharah', 'unnis',
+  'bees', 'ikkees', 'bais', 'teis', 'chaubis', 'pachees', 'chhabbis', 'sattais', 'atthais', 'unnatees',
+  'tees', 'iktees', 'battees', 'taintees', 'chauntees', 'paintees', 'chhattees', 'sainttees', 'adtees', 'untalees',
+  'chalees', 'iktalees', 'bayalees', 'taintalees', 'chavalees', 'paintalees', 'chhiyalees', 'saintalees', 'adtalees', 'unchas',
+  'pachaas', 'ikyavan', 'bavan', 'tirepan', 'chauvan', 'pachpan', 'chhappan', 'sattavan', 'atthavan', 'unsath',
+  'saath', 'iksath', 'baasath', 'tiresath', 'chaunsath', 'painsath', 'chhiyasath', 'sadsath', 'adsath', 'unhattar',
+  'sattar', 'ikhattar', 'bahattar', 'tihattar', 'chauhattar', 'pachhattar', 'chhihattar', 'satahattar', 'athhattar', 'unasi',
+  'assi', 'ikyasi', 'bayasi', 'tirasi', 'chaurasi', 'pachasi', 'chhiyasi', 'sattasi', 'atthasi', 'navasi',
+  'nabbe', 'ikyanave', 'banave', 'tiranave', 'chauranave', 'pachanave', 'chhiyanave', 'sattanave', 'atthanave', 'ninyanave'];
+var HI_SCALE = [
+  { v: 1e7, nat: 'करोड़', rom: 'karod' },
+  { v: 1e5, nat: 'लाख', rom: 'laakh' },
+  { v: 1e3, nat: 'हज़ार', rom: 'hazaar' },
+  { v: 1e2, nat: 'सौ', rom: 'sau' }
+];
+function hiNative(n) {
+  if (n === 0) return 'शून्य';
+  var out = [], rest = n;
+  for (var i = 0; i < HI_SCALE.length; i++) {
+    var v = HI_SCALE[i].v, g = Math.floor(rest / v);
+    if (g > 0) out.push((g < 100 ? HI_NATIVE[g] : hiNative(g)) + ' ' + HI_SCALE[i].nat);
+    rest %= v;
+  }
+  if (rest > 0) out.push(HI_NATIVE[rest]);
+  return out.join(' ');
+}
+function hiRoman(n) {
+  if (n === 0) return 'shunya';
+  var out = [], rest = n;
+  for (var i = 0; i < HI_SCALE.length; i++) {
+    var v = HI_SCALE[i].v, g = Math.floor(rest / v);
+    if (g > 0) out.push((g < 100 ? HI_ROMAN[g] : hiRoman(g)) + ' ' + HI_SCALE[i].rom);
+    rest %= v;
+  }
+  if (rest > 0) out.push(HI_ROMAN[rest]);
+  return out.join(' ');
+}
+
+/* ---------------- 泰语 th ---------------- */
+var TH_DIGIT = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
+var TH_DIGIT_R = ['', 'nueng', 'song', 'sam', 'si', 'ha', 'hok', 'chet', 'paet', 'kao'];
+var TH_PLACES = [
+  { v: 1e5, nat: 'แสน', rom: 'saen' },
+  { v: 1e4, nat: 'หมื่น', rom: 'muen' },
+  { v: 1e3, nat: 'พัน', rom: 'phan' },
+  { v: 1e2, nat: 'ร้อย', rom: 'roi' },
+  { v: 1e1, nat: 'สิบ', rom: 'sip' }
+];
+function thUnder1e6(n) {
+  var nat = [], rom = [];
+  for (var i = 0; i < TH_PLACES.length; i++) {
+    var v = TH_PLACES[i].v, d = Math.floor(n / v) % 10;
+    if (d > 0) {
+      if (v === 10 && d === 1) { nat.push('สิบ'); rom.push('sip'); }
+      else if (v === 10 && d === 2) { nat.push('ยี่สิบ'); rom.push('yi sip'); }
+      else { nat.push(TH_DIGIT[d] + TH_PLACES[i].nat); rom.push(TH_DIGIT_R[d] + ' ' + TH_PLACES[i].rom); }
+    }
+  }
+  var u = n % 10;
+  if (u > 0) {
+    if (u === 1 && n >= 10) { nat.push('เอ็ด'); rom.push('et'); }
+    else { nat.push(TH_DIGIT[u]); rom.push(TH_DIGIT_R[u]); }
+  }
+  return { nat: nat.join(''), rom: rom.join(' ') };
+}
+function thWords(n) {
+  if (n === 0) return { nat: 'ศูนย์', rom: 'sun' };
+  var mill = Math.floor(n / 1e6), r = n % 1e6, nat = '', rom = '';
+  if (mill > 0) { var m = thUnder1e6(mill); nat += m.nat + 'ล้าน'; rom += m.rom + ' laan'; }
+  if (r > 0) { var t = thUnder1e6(r); nat += t.nat; rom += (rom ? ' ' : '') + t.rom; }
+  return { nat: nat, rom: rom };
+}
+
+/* ---------------- 越南语 vi ---------------- */
+var VI_DIGIT = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+function viBlock3(n, forceHundred) {
+  var h = Math.floor(n / 100), r = n % 100, out = [];
+  if (h > 0) out.push(VI_DIGIT[h] + ' trăm');
+  else if (forceHundred) out.push('không trăm');
+  var t = Math.floor(r / 10), u = r % 10;
+  if (t > 0) {
+    out.push(t === 1 ? 'mười' : VI_DIGIT[t] + ' mươi');
+    if (u === 1 && t >= 2) out.push('mốt');
+    else if (u === 5) out.push('lăm');
+    else if (u > 0) out.push(VI_DIGIT[u]);
+  } else if (u > 0) {
+    if (h > 0) out.push('linh');
+    out.push(VI_DIGIT[u]);
+  }
+  return out.join(' ');
+}
+function viWords(n) {
+  if (n === 0) return 'không';
+  var blocks = [], x = n;
+  while (x > 0) { blocks.push(x % 1000); x = Math.floor(x / 1000); }
+  var scale = ['', 'nghìn', 'triệu', 'tỷ', 'nghìn tỷ', 'triệu tỷ', 'tỷ tỷ'];
+  var out = [];
+  for (var i = blocks.length - 1; i >= 0; i--) {
+    var b = blocks[i];
+    if (b === 0) continue;
+    var force = (i < blocks.length - 1) && b < 100;
+    out.push(viBlock3(b, force) + (scale[i] ? ' ' + scale[i] : ''));
+  }
+  return out.join(' ');
+}
+
+/* ---------------- 中文 zh ---------------- */
+var ZH_DIGIT = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+var ZH_UNITS = ['千', '百', '十', ''];
+var ZH_BIG = ['', '万', '亿', '万亿'];
+
+function zhGroup(x) {
+  var s = '', zero = false, started = false;
+  for (var i = 0; i < 4; i++) {
+    var d = Math.floor(x / Math.pow(10, 3 - i)) % 10;
+    if (d === 0) { if (started) zero = true; continue; }
+    if (zero) { s += '零'; zero = false; }
+    if (i === 2 && d === 1 && !started) s += '十';
+    else s += ((d === 2 && i <= 1) ? '两' : ZH_DIGIT[d]) + ZH_UNITS[i];
+    started = true;
+  }
+  return s;
+}
+
+var ZH_ROMAN_MAP = {
+  '零': 'ling', '一': 'yi', '二': 'er', '两': 'liang', '三': 'san', '四': 'si', '五': 'wu',
+  '六': 'liu', '七': 'qi', '八': 'ba', '九': 'jiu', '十': 'shi', '百': 'bai', '千': 'qian',
+  '万': 'wan', '亿': 'yi', '点': 'dian', '元': 'yuan', '年': 'nian', '月': 'yue', '日': 'ri'
+};
+// 逐字转拼音，连续阿拉伯数字保持成组不拆开
+function zhRomanize(s) {
+  var out = [], prevDigit = false;
+  for (var i = 0; i < s.length; i++) {
+    var ch = s.charAt(i), isDigit = /[0-9]/.test(ch);
+    out.push(isDigit && prevDigit ? ch : (i ? ' ' : '') + (ZH_ROMAN_MAP[ch] || ch));
+    prevDigit = isDigit;
+  }
+  return out.join('').trim();
+}
+
+function zhWords(n) {
+  if (n === 0) return '零';
+  var groups = [], x = n;
+  while (x > 0) { groups.push(x % 10000); x = Math.floor(x / 10000); }
+  var s = '';
+  for (var i = groups.length - 1; i >= 0; i--) {
+    var g = groups[i];
+    if (g === 0) { if (s) s += '零'; continue; }
+    if (s && g < 1000) s += '零';
+    s += (g === 2 && i > 0 ? '两' : zhGroup(g)) + ZH_BIG[i];
+  }
+  return s.replace(/零{2,}/g, '零').replace(/零+$/, '') || '零';
+}
+
+/* ---------------- 小数连接词 ---------------- */
+var DECIMAL_WORD = {
+  'id': { nat: 'koma', rom: 'koma' },
+  'zh': { nat: '点', rom: 'dian' },
+  'en': { nat: 'point', rom: 'point' },
+  'en-US': { nat: 'point', rom: 'point' },
+  'en-IN': { nat: 'point', rom: 'point' },
+  'fil': { nat: 'punto', rom: 'punto' },
+  'es-MX': { nat: 'coma', rom: 'coma' },
+  'es-PE': { nat: 'coma', rom: 'coma' },
+  'es-CO': { nat: 'coma', rom: 'coma' },
+  'es-AR': { nat: 'coma', rom: 'coma' },
+  'hi': { nat: 'दशमलव', rom: 'dashamlav' },
+  'th': { nat: 'จุด', rom: 'chut' },
+  'vi': { nat: 'phẩy', rom: 'phay' }
+};
+
+/* ---------------- 数字 -> 文字 ---------------- */
+function cardinalToWords(intStr, lang) {
+  var n = parseInt(intStr, 10);
+  if (isNaN(n)) return null;
+  switch (lang) {
+    case 'id': return { nat: idWords(n), rom: idWords(n) };
+    case 'zh': return { nat: zhWords(n), rom: zhRomanize(zhWords(n)) };
+    case 'en': case 'en-US': return { nat: enWords(n), rom: enWords(n) };
+    case 'en-IN': return { nat: enINWords(n), rom: enINWords(n) };
+    case 'fil': return { nat: filWords(n), rom: filWords(n) };
+    case 'th': return thWords(n);
+    case 'vi': return { nat: viWords(n), rom: viWords(n) };
+    case 'hi': return { nat: hiNative(n), rom: hiRoman(n) };
+    case 'es-MX': case 'es-PE': case 'es-CO': case 'es-AR': return { nat: esWords(n), rom: esWords(n) };
+    default: return null;
+  }
+}
+// 中文不按词间空格分隔，货币单位前不空格
+function joiner(lang) { return lang === 'zh' ? '' : ' '; }
+// 小数点前后：中文与泰语均不加空格，泰语的小数读法需连写（一点五 -> หนึ่งจุดห้า）
+function decJoiner(lang) { return (lang === 'zh' || lang === 'th') ? '' : ' '; }
+
+function decimalToWords(decStr, lang) {
+  var d = DECIMAL_WORD[lang];
+  if (!d) return null;
+  var sp = decJoiner(lang);
+  var natArr = [], romArr = [];
+  for (var i = 0; i < decStr.length; i++) {
+    var w = cardinalToWords(decStr.charAt(i), lang);
+    if (!w) return null;
+    natArr.push(w.nat); romArr.push(w.rom);
+  }
+  return { nat: d.nat + sp + natArr.join(sp), rom: d.rom + sp + romArr.join(sp) };
+}
+// 把任意数值转成 {nat, rom}；金额场景下西语做 uno -> un 的短尾处理
+function numberText(intStr, decStr, lang, forNoun) {
+  var base = cardinalToWords(intStr, lang);
+  if (!base) return null;
+  var nat = base.nat, rom = base.rom;
+  if (!decStr && forNoun && lang.indexOf('es-') === 0) { nat = esApocope(nat); rom = esApocope(rom); }
+  // 中文后接量词名词时，单用的「二」读作「两」
+  if (!decStr && forNoun && lang === 'zh' && nat === '二') { nat = '两'; rom = '两'; }
+  if (decStr) {
+    var dw = decimalToWords(decStr, lang);
+    if (!dw) return null;
+    var sp = decJoiner(lang);
+    nat += sp + dw.nat; rom += sp + dw.rom;
+  }
+  return { nat: nat, rom: rom };
+}
+
+/* ---------------- 链接按字符转写 ---------------- */
+// 链接播报需要逐个字符读，并把 "." 换成目标语言的本地化词汇
+var DOT_WORD = {
+  'id': { nat: 'titik', rom: 'titik' },
+  'zh': { nat: '点', rom: 'dian' },
+  'hi': { nat: 'डॉट', rom: 'dot' },
+  'en-IN': { nat: 'dot', rom: 'dot' },
+  'fil': { nat: 'tuldok', rom: 'tuldok' },
+  'en': { nat: 'dot', rom: 'dot' },
+  'en-US': { nat: 'dot', rom: 'dot' },
+  'th': { nat: 'จุด', rom: 'chut' },
+  'vi': { nat: 'chấm', rom: 'cham' },
+  'es-MX': { nat: 'punto', rom: 'punto' },
+  'es-PE': { nat: 'punto', rom: 'punto' },
+  'es-CO': { nat: 'punto', rom: 'punto' },
+  'es-AR': { nat: 'punto', rom: 'punto' }
+};
+
+// 逐字符展开，字符之间统一用空格分隔（拼读在任何语言下都需要分隔）
+function linkToSpeech(url, lang) {
+  var d = DOT_WORD[lang];
+  if (!d) return null;
+  var nat = [], rom = [];
+  for (var i = 0; i < url.length; i++) {
+    var ch = url.charAt(i);
+    if (ch === '.') { nat.push(d.nat); rom.push(d.rom); }
+    else { nat.push(ch); rom.push(ch); }
+  }
+  return { nat: nat.join(' '), rom: rom.join(' ') };
+}
+
+/* ---------------- 月份与日期 ---------------- */
+var MONTHS = {
+  'id': ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
+  'en': ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  'en-IN': ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  'fil': ['Enero', 'Pebrero', 'Marso', 'Abril', 'Mayo', 'Hunyo', 'Hulyo', 'Agosto', 'Setyembre', 'Oktubre', 'Nobyembre', 'Disyembre'],
+  'es-MX': ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
+  'th': ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'],
+  'vi': ['tháng 1', 'tháng 2', 'tháng 3', 'tháng 4', 'tháng 5', 'tháng 6', 'tháng 7', 'tháng 8', 'tháng 9', 'tháng 10', 'tháng 11', 'tháng 12']
+};
+MONTHS['es-PE'] = MONTHS['es-MX']; MONTHS['es-CO'] = MONTHS['es-MX']; MONTHS['es-AR'] = MONTHS['es-MX'];
+MONTHS['en-US'] = MONTHS['en'];
+var MONTHS_HI_NATIVE = ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+var MONTHS_HI_ROMAN = ['janvari', 'farvari', 'maarch', 'aprail', 'mai', 'joon', 'julai', 'agast', 'sitambar', 'aktubar', 'navambar', 'disambar'];
+var MONTHS_TH_ROMAN = ['mokkarakhom', 'kumphaphan', 'minakhom', 'mesayon', 'phruetsaphakhom', 'mithunayon',
+  'karakdakhom', 'singhakhom', 'kanyayon', 'tulakhom', 'phruetsachikayon', 'thanvakhom'];
+
+function parseDate(raw) {
+  var m = String(raw == null ? '' : raw).trim()
+    .match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?)?$/);
+  if (!m) return null;
+  var y = +m[1], mo = +m[2], d = +m[3];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  return { y: y, m: mo, d: d };
+}
+function formatDateSpeech(date, lang) {
+  var mi = date.m - 1;
+  switch (lang) {
+    case 'id': {
+      var yW = idWords(date.y);
+      return { nat: 'tanggal ' + idWords(date.d) + ' bulan ' + MONTHS.id[mi] + ' tahun ' + yW,
+               rom: 'tanggal ' + idWords(date.d) + ' bulan ' + MONTHS.id[mi] + ' tahun ' + yW };
+    }
+    case 'es-MX': case 'es-PE': case 'es-CO': case 'es-AR':
+      return { nat: date.d + ' de ' + MONTHS[lang][mi] + ' de ' + date.y, rom: date.d + ' de ' + MONTHS[lang][mi] + ' de ' + date.y };
+    case 'en': case 'en-IN':
+      return { nat: date.d + ' ' + MONTHS[lang][mi] + ' ' + date.y, rom: date.d + ' ' + MONTHS[lang][mi] + ' ' + date.y };
+    case 'en-US':
+      return { nat: MONTHS.en[mi] + ' ' + date.d + ', ' + date.y, rom: MONTHS.en[mi] + ' ' + date.d + ', ' + date.y };
+    case 'zh': {
+      var zhDate = date.y + '年' + date.m + '月' + date.d + '日';
+      return { nat: zhDate, rom: zhRomanize(zhDate) };
+    }
+    case 'fil':
+      return { nat: 'ika-' + date.d + ' ng ' + MONTHS.fil[mi] + ' ' + date.y, rom: 'ika-' + date.d + ' ng ' + MONTHS.fil[mi] + ' ' + date.y };
+    case 'hi':
+      return { nat: date.d + ' ' + MONTHS_HI_NATIVE[mi] + ' ' + date.y, rom: date.d + ' ' + MONTHS_HI_ROMAN[mi] + ' ' + date.y };
+    case 'th':
+      return { nat: date.d + ' ' + MONTHS.th[mi] + ' ' + date.y, rom: date.d + ' ' + MONTHS_TH_ROMAN[mi] + ' ' + date.y };
+    case 'vi':
+      return { nat: 'ngày ' + date.d + ' tháng ' + date.m + ' năm ' + date.y, rom: 'ngay ' + date.d + ' thang ' + date.m + ' nam ' + date.y };
+    default: return null;
+  }
+}
+
+/* ---------------- 短信 locale 数字格式 ---------------- */
+// scheme: eu = 千分位 . / 小数点 ,   us = 千分位 , / 小数点 .   in = 印度式分组
+var SMS_LOCALE = {
+  'id': { dec: ',', scheme: 'eu' }, 'vi': { dec: ',', scheme: 'eu' },
+  'es-AR': { dec: ',', scheme: 'eu' }, 'es-CO': { dec: ',', scheme: 'eu' },
+  'en': { dec: '.', scheme: 'us' }, 'en-US': { dec: '.', scheme: 'us' }, 'zh': { dec: '.', scheme: 'us' },
+  'fil': { dec: '.', scheme: 'us' }, 'th': { dec: '.', scheme: 'us' },
+  'es-MX': { dec: '.', scheme: 'us' }, 'es-PE': { dec: '.', scheme: 'us' },
+  'en-IN': { dec: '.', scheme: 'in' }, 'hi': { dec: '.', scheme: 'in' }
+};
+function formatSmsNumber(intStr, decStr, lang) {
+  var cfg = SMS_LOCALE[lang];
+  if (!cfg) return null;
+  var intFormatted;
+  if (cfg.scheme === 'in') {
+    var s = intStr;
+    if (s.length <= 3) intFormatted = s;
+    else {
+      var last3 = s.slice(-3), rest = s.slice(0, -3), chunks = [];
+      while (rest.length > 2) { chunks.unshift(rest.slice(-2)); rest = rest.slice(0, -2); }
+      if (rest) chunks.unshift(rest);
+      intFormatted = chunks.join(',') + ',' + last3;
+    }
+  } else if (cfg.scheme === 'eu') {
+    intFormatted = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  } else {
+    intFormatted = intStr.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  return decStr ? intFormatted + cfg.dec + decStr : intFormatted;
+}
+
+/* ============================================================
+ * 业务配置
+ * ============================================================ */
+
+var LANGS = {
+  'id': { name: '印度尼西亚语', code: 'id', tts: '印尼语音色' },
+  'zh': { name: '中文', code: 'zh', tts: '中文音色' },
+  'hi': { name: '印地语', code: 'hi', tts: '印地语音色' },
+  'en-IN': { name: '印度英语', code: 'en-IN', tts: '印度英语音色' },
+  'fil': { name: '菲律宾语', code: 'fil', tts: '菲律宾语音色' },
+  'en': { name: '英语', code: 'en', tts: '英语音色' },
+  'en-US': { name: '美式英语', code: 'en-US', tts: '美式英语音色' },
+  'th': { name: '泰语', code: 'th', tts: '泰语音色' },
+  'vi': { name: '越南语', code: 'vi', tts: '越南语音色' },
+  'es-MX': { name: '西班牙语（墨西哥）', code: 'es-MX', tts: '西语音色' },
+  'es-PE': { name: '西班牙语（秘鲁）', code: 'es-PE', tts: '西语音色' },
+  'es-CO': { name: '西班牙语（哥伦比亚）', code: 'es-CO', tts: '西语音色' },
+  'es-AR': { name: '西班牙语（阿根廷）', code: 'es-AR', tts: '西语音色' }
+};
+var ALL_LANGS = ['id', 'zh', 'hi', 'en-IN', 'fil', 'en', 'en-US', 'th', 'vi', 'es-MX', 'es-PE', 'es-CO', 'es-AR'];
+
+var COUNTRIES = [
+  { key: 'CN', name: '中国', currency: 'CNY', langs: ['zh'],
+    units: { 'zh': { s: '元', p: '元', rs: 'yuan', rp: 'yuan' } } },
+  { key: 'US', name: '美国', currency: 'USD', langs: ['en-US'],
+    units: { 'en-US': { s: 'dollar', p: 'dollars' } } },
+  { key: 'ID', name: '印度尼西亚', currency: 'IDR', langs: ['id'],
+    units: { 'id': { s: 'rupiah', p: 'rupiah' } } },
+  { key: 'IN', name: '印度', currency: 'INR', langs: ['hi', 'en-IN'],
+    units: { 'hi': { s: 'रुपया', p: 'रुपये', rs: 'rupaya', rp: 'rupaye' },
+             'en-IN': { s: 'rupee', p: 'rupees' } } },
+  { key: 'PH', name: '菲律宾', currency: 'PHP', langs: ['fil', 'en'],
+    units: { 'fil': { s: 'piso', p: 'piso' }, 'en': { s: 'peso', p: 'pesos' } } },
+  { key: 'NG', name: '尼日利亚', currency: 'NGN', langs: ['en'],
+    units: { 'en': { s: 'naira', p: 'naira' } } },
+  { key: 'TH', name: '泰国', currency: 'THB', langs: ['th'],
+    units: { 'th': { s: 'บาท', p: 'บาท', rs: 'baht', rp: 'baht' } } },
+  { key: 'VN', name: '越南', currency: 'VND', langs: ['vi'],
+    units: { 'vi': { s: 'đồng', p: 'đồng' } } },
+  { key: 'PE', name: '秘鲁', currency: 'PEN', langs: ['es-PE'],
+    units: { 'es-PE': { s: 'sol', p: 'soles' } } },
+  { key: 'MX', name: '墨西哥', currency: 'MXN', langs: ['es-MX'],
+    units: { 'es-MX': { s: 'peso', p: 'pesos' } } },
+  { key: 'CO', name: '哥伦比亚', currency: 'COP', langs: ['es-CO'],
+    units: { 'es-CO': { s: 'peso', p: 'pesos' } } },
+  { key: 'AR', name: '阿根廷', currency: 'ARS', langs: ['es-AR'],
+    units: { 'es-AR': { s: 'peso', p: 'pesos' } } }
+];
+
+var TYPES = {
+  MONEY: { name: 'MONEY 金额', placeholder: '例如 1500.50', samples: ['1500.50', '1', '0', '250000'] },
+  DATE: { name: 'DATE 日期', placeholder: '例如 2026-05-05', samples: ['2026-05-05', '2026-12-31', '2026/05/05 14:30'] },
+  NUMBER: { name: 'NUMBER 数字', placeholder: '例如 5000', samples: ['5000', '100000', '12500000'] },
+  LINK: { name: 'LINK 链接', placeholder: '例如 https://aicc.example.com/pay', samples: ['https://aicc.example.com/pay?id=88'] },
+  TEXT: { name: 'TEXT 文本', placeholder: '输入任意文本', samples: ['Bapak/Ibu, mohon konfirmasi'] }
+};
+
+/* ============================================================
+ * 转写主流程
+ * ============================================================ */
+function getCountry(key) {
+  for (var i = 0; i < COUNTRIES.length; i++) if (COUNTRIES[i].key === key) return COUNTRIES[i];
+  return null;
+}
+
+// 中文的输出是连续汉字，拼音必须基于最终文本整体生成，
+// 否则货币单位会与前一音节粘连（一千五百元 -> baiyuan）
+function transcribe(opts) {
+  var r = transcribeRaw(opts);
+  if (opts.lang === 'zh' && r.out && r.out.nat && /[一-龥]/.test(r.out.nat)) {
+    r.out.rom = zhRomanize(r.out.nat);
+  }
+  return r;
+}
+
+function transcribeRaw(opts) {
+  var country = getCountry(opts.countryKey);
+  var lang = opts.lang;
+  var channel = opts.channel;
+  var type = opts.type;
+  var raw = opts.value;
+
+  var r = { type: type, channel: channel, country: country, lang: lang, raw: raw, steps: [], source: 'PASSTHROUGH', out: { nat: '', rom: '' }, hint: null, hintLevel: 'warn' };
+  var step = function (k, v) { r.steps.push({ k: k, v: v }); };
+
+  if (type === 'TEXT') {
+    r.source = 'PASSTHROUGH';
+    r.out = { nat: raw, rom: raw };
+    step('处理方式', '原样返回，不做格式化');
+    return r;
+  }
+
+  if (type === 'LINK') {
+    if (channel === 'SMS') {
+      r.source = 'PASSTHROUGH';
+      r.out = { nat: raw, rom: raw };
+      step('处理方式', '短信普通链接字段原样返回；仅 DYNAMIC_SHORT_URL 按商户国家生成短链');
+      return r;
+    }
+    var lk = linkToSpeech(raw, lang);
+    if (!lk) {
+      r.source = 'UNSUPPORTED_LANGUAGE';
+      r.out = { nat: raw, rom: raw };
+      r.hint = '语言 ' + lang + ' 暂未配置 "." 的本地化读法，链接按原样返回';
+      return r;
+    }
+    r.source = 'LINK_SPELLED';
+    r.out = lk;
+    step('处理方式', '按字符逐个朗读，字符间用空格分隔');
+    step('. 的读法', '"." 转写为 ' + DOT_WORD[lang].nat + '（' + lang + '）');
+    if (!/^https?:\/\//i.test(raw)) {
+      r.hint = '该链接不以 http:// 或 https:// 开头，与导入校验要求不一致，请确认变量值来源';
+      r.hintLevel = 'danger';
+    }
+    return r;
+  }
+
+  if (channel === 'SMS') {
+    if (type === 'DATE') {
+      var d0 = parseDate(raw);
+      if (!d0) { r.source = 'INVALID'; r.hint = '日期解析失败：仅支持 yyyy-MM-dd / yyyy/MM/dd（可带 HH:mm[:ss]）'; r.hintLevel = 'danger'; return r; }
+      r.source = 'SMS_RULE';
+      r.out = { nat: d0.y + '-' + pad2(d0.m) + '-' + pad2(d0.d), rom: d0.y + '-' + pad2(d0.m) + '-' + pad2(d0.d) };
+      step('处理方式', '短信日期统一输出 yyyy-MM-dd，不随语言变化');
+      return r;
+    }
+    if (type === 'NUMBER') {
+      r.source = 'SMS_RULE';
+      r.out = { nat: raw, rom: raw };
+      step('处理方式', '短信 NUMBER 原样返回');
+      return r;
+    }
+    // MONEY
+    var mz = stripTrailingZeros(raw);
+    if (mz === null) { r.source = 'INVALID'; r.hint = '金额格式不合法：须为非负数字，正则 ^(0|[1-9]\\d*)(\\.\\d+)?$'; r.hintLevel = 'danger'; return r; }
+    var mp = splitNumber(mz);
+    step('原始值', raw);
+    step('去尾零后', mz);
+    var smsNum = formatSmsNumber(mp.int, mp.dec, lang);
+    if (smsNum === null) {
+      r.source = 'UNSUPPORTED_LOCALE';
+      r.out = { nat: raw, rom: raw };
+      step('处理方式', '短信 locale 不支持，返回进入格式化链路时的原数字');
+      r.hint = '当前语言 ' + lang + ' 没有对应的短信数字格式，按 PRD 兜底规则返回原数字';
+      return r;
+    }
+    r.source = 'SMS_RULE';
+    r.out = { nat: smsNum, rom: smsNum };
+    step('数字格式', '按 locale ' + lang + ' 格式化');
+    step('货币单位', '短信不拼接货币代码、符号或单位');
+    return r;
+  }
+
+  /* ---------- 话术播报 ---------- */
+  if (type === 'DATE') {
+    var d = parseDate(raw);
+    if (!d) { r.source = 'INVALID'; r.hint = '日期解析失败：仅支持 yyyy-MM-dd / yyyy/MM/dd（可带 HH:mm[:ss]）'; r.hintLevel = 'danger'; return r; }
+    var fd = formatDateSpeech(d, lang);
+    if (!fd) { r.source = 'UNSUPPORTED_LANGUAGE'; r.out = { nat: raw, rom: raw }; r.hint = '语言 ' + lang + ' 暂无日期转写策略'; r.hintLevel = 'danger'; return r; }
+    r.source = 'COUNTRY_CONFIG';
+    r.out = fd;
+    step('解析结果', d.y + '-' + pad2(d.m) + '-' + pad2(d.d));
+    step('日期格式', '按语言 ' + lang + ' 的播报格式');
+    return r;
+  }
+
+  if (type === 'NUMBER') {
+    var nz = stripTrailingZeros(raw);
+    if (nz === null || nz.indexOf('.') >= 0) { r.source = 'INVALID'; r.hint = 'NUMBER 须为非负整数，正则 ^(0|[1-9]\\d*)$'; r.hintLevel = 'danger'; return r; }
+    var np = splitNumber(nz);
+    var nw = cardinalToWords(np.int, lang);
+    if (!nw) { r.source = 'UNSUPPORTED_LANGUAGE'; r.out = { nat: raw, rom: raw }; r.hint = '语言 ' + lang + ' 暂无数字转写策略'; r.hintLevel = 'danger'; return r; }
+    r.source = 'COUNTRY_CONFIG';
+    r.out = nw;
+    step('原始值', raw);
+    step('数字读法', nw.nat);
+    return r;
+  }
+
+  /* MONEY 话术 */
+  var z = stripTrailingZeros(raw);
+  if (z === null) { r.source = 'INVALID'; r.hint = '金额格式不合法：须为非负数字，正则 ^(0|[1-9]\\d*)(\\.\\d+)?$'; r.hintLevel = 'danger'; return r; }
+  var p = splitNumber(z);
+  step('原始值', raw);
+  step('去尾零后', z);
+
+  var words = numberText(p.int, p.dec, lang, true);
+  if (!words) {
+    r.source = 'UNSUPPORTED_LANGUAGE';
+    r.out = { nat: z, rom: z };
+    step('数字读法', '无对应语言策略，输出去尾零后的纯数字字符串');
+    r.hint = '语言 ' + lang + ' 暂无数字转写策略：按兜底规则输出纯数字，不拼接单位';
+    return r;
+  }
+  step('数字读法', words.nat);
+
+  var unitCfg = country && country.units ? country.units[lang] : null;
+  if (!unitCfg) {
+    r.source = 'MISSING_UNIT';
+    r.out = words;
+    var defLang = country && country.langs.length ? country.langs[0] : null;
+    step('货币单位', '该国家未按 ' + lang + ' 维护货币单位，未拼接');
+    r.hint = '「' + (country ? country.name : '') + '」尚未按「' + LANGS[lang].name + '」维护货币单位。'
+      + (defLang ? '该国家当前配置的语言为 ' + country.langs.map(function (l) { return LANGS[l].name; }).join('、') + '。' : '')
+      + '请在国家地区管理中补齐后再验证。';
+    r.hintLevel = 'danger';
+    return r;
+  }
+
+  var isSingular = (z === '1');
+  var unit = isSingular ? unitCfg.s : unitCfg.p;
+  var unitRoman = isSingular ? (unitCfg.rs || unitCfg.s) : (unitCfg.rp || unitCfg.p);
+
+  r.source = 'COUNTRY_CONFIG';
+  var sep = joiner(lang);
+  r.out = {
+    nat: words.nat + sep + unit,
+    rom: words.rom + sep + unitRoman
+  };
+  step('单复数判定', z === '1' ? '金额等于 1，使用单数单位' : '金额为 0 / 小数 / 大于 1，使用复数单位');
+  step('货币单位', unit + '（' + country.currency + '，按语言 ' + lang + ' 配置）');
+  step('输出结构', sep === '' ? '数字文本 + 货币单位（中文不加词间空格）' : '数字文本 + 空格 + 货币单位');
+  return r;
+}
+
+function pad2(x) { return (x < 10 ? '0' : '') + x; }
+
+/* ============================================================
+ * 页面逻辑
+ * ============================================================ */
+var el = function (id) { return document.getElementById(id); };
+var state = { channel: 'SPEECH', countryKey: 'ID', lang: 'id', force: false, type: 'MONEY', last: null };
+
+function fillCountries() {
+  var sel = el('countrySelect');
+  sel.innerHTML = '';
+  COUNTRIES.forEach(function (c) {
+    var o = document.createElement('option');
+    o.value = c.key;
+    o.textContent = c.name + '（' + c.currency + '）';
+    sel.appendChild(o);
+  });
+  sel.value = state.countryKey;
+}
+
+function langOptions() {
+  if (state.force) return ALL_LANGS;
+  var c = getCountry(state.countryKey);
+  return c ? c.langs.slice() : ALL_LANGS;
+}
+
+function refreshLangs() {
+  var sel = el('langSelect');
+  var opts = langOptions();
+  sel.innerHTML = '';
+  opts.forEach(function (l) {
+    var o = document.createElement('option');
+    o.value = l;
+    o.textContent = LANGS[l].name + '（' + l + '）';
+    sel.appendChild(o);
+  });
+  if (opts.indexOf(state.lang) < 0) state.lang = opts[0];
+  sel.value = state.lang;
+
+  var c = getCountry(state.countryKey);
+  var u = c && c.units ? c.units[state.lang] : null;
+  var help = el('langHelp');
+  if (c && c.units[state.lang]) {
+    help.textContent = '该国家已按此语言维护货币单位：单数 ' + u.s + ' / 复数 ' + u.p;
+    help.style.color = '';
+  } else {
+    help.textContent = '⚠ 该国家当前未按此语言维护货币单位，金额类型将不拼接单位';
+    help.style.color = '#b56a00';
+  }
+}
+
+function refreshCountryHelp() {
+  var c = getCountry(state.countryKey);
+  if (!c) return;
+  var names = c.langs.map(function (l) { return LANGS[l].name + '（' + l + '）'; }).join('、');
+  el('countryHelp').textContent = '货币代码 ' + c.currency + '；商户国家地区决定默认币种，官方语言：' + names;
+}
+
+function refreshTypeHelp() {
+  var t = state.type;
+  var tips = {
+    MONEY: '话术：数字读法跟随语言，货币单位跟随国家 + 语言；短信：按 locale 格式化数字，不拼单位。',
+    DATE: '话术：按语言输出播报格式；短信：统一 yyyy-MM-dd。',
+    NUMBER: '话术：按语言转为数字读法；短信：原样返回。',
+    LINK: '各链路原样返回，仅做短链路由，不做转写。',
+    TEXT: '原样返回，不做格式化。'
+  };
+  el('typeHelp').textContent = tips[t];
+  var inp = el('valueInput');
+  inp.placeholder = TYPES[t].placeholder;
+  var chips = el('sampleChips');
+  chips.innerHTML = '';
+  TYPES[t].samples.forEach(function (s) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = s;
+    b.addEventListener('click', function () { inp.value = s; inp.focus(); });
+    chips.appendChild(b);
+  });
+}
+
+function refreshChannelHelp() {
+  el('channelHelp').textContent = state.channel === 'SPEECH'
+    ? '外呼话术：输出送 TTS 的播报文本'
+    : '短信：按短信 locale 格式化数字，且不拼接货币单位';
+}
+
+var SOURCE_META = {
+  COUNTRY_CONFIG: { label: '国家配置命中', cls: 'ok' },
+  SMS_RULE: { label: '短信格式化规则', cls: 'ok' },
+  LINK_SPELLED: { label: '链接按字符转写', cls: 'ok' },
+  PASSTHROUGH: { label: '原样返回', cls: 'muted' },
+  MISSING_UNIT: { label: '币种单位未按该语言配置', cls: 'err' },
+  UNSUPPORTED_LANGUAGE: { label: '语言策略不支持', cls: 'err' },
+  UNSUPPORTED_LOCALE: { label: '短信 locale 不支持', cls: 'warn' },
+  INVALID: { label: '输入不合法', cls: 'err' }
+};
+
+function render() {
+  var r = state.last;
+  var tag = el('sourceTag');
+  var langTag = el('langTag');
+  var nativeOut = el('nativeOut');
+  var romanRow = el('romanRow');
+  var hint = el('resultHint');
+  var table = el('detailTable');
+
+  romanRow.hidden = true;
+
+  if (!r) {
+    tag.className = 'status-tag muted'; tag.textContent = '等待输出';
+    langTag.textContent = '';
+    nativeOut.className = 'output-text empty';
+    nativeOut.textContent = '点击左侧「输出转写结果」后展示';
+    hint.hidden = true;
+    table.hidden = true;
+    el('romanBtn').disabled = true;
+    el('copyBtn').disabled = true;
+    el('resultSummary').textContent = '尚未执行';
+    return;
+  }
+
+  var meta = SOURCE_META[r.source] || { label: r.source, cls: 'muted' };
+  tag.className = 'status-tag ' + meta.cls;
+  tag.textContent = meta.label;
+  langTag.className = 'status-tag muted';
+  langTag.textContent = LANGS[r.lang].name + '（' + r.lang + '）· ' + (r.channel === 'SPEECH' ? '话术播报' : '短信');
+
+  if (r.out.nat) {
+    nativeOut.className = 'output-text';
+    nativeOut.textContent = r.out.nat;
+  } else {
+    nativeOut.className = 'output-text empty';
+    nativeOut.textContent = '未能生成转写结果';
+  }
+
+  el('romanOut').textContent = r.out.rom || '—';
+  // 拉丁文字语言（印尼语 / 西语 / 英语等）原生即拉丁，无音译可看
+  el('romanBtn').disabled = !r.out.rom || r.out.rom === r.out.nat;
+  el('copyBtn').disabled = !r.out.nat;
+
+  if (r.hint) {
+    hint.hidden = false;
+    hint.className = 'hint' + (r.hintLevel === 'danger' ? ' danger' : '');
+    hint.textContent = r.hint;
+  } else { hint.hidden = true; }
+
+  var rows = [];
+  rows.push(['变量类型', TYPES[r.type].name]);
+  rows.push(['渠道', r.channel === 'SPEECH' ? '话术播报' : '短信']);
+  rows.push(['商户国家地区', r.country.name + '（' + r.country.currency + '）']);
+  rows.push(['语言 / locale', LANGS[r.lang].name + '（' + r.lang + '）']);
+  rows.push(['原始值', '<span class="mono">' + esc(r.raw) + '</span>']);
+  r.steps.forEach(function (s) {
+    rows.push([s.k, typeof s.v === 'string' && s.v.length < 60 ? s.v : '<span class="mono">' + esc(String(s.v)) + '</span>']);
+  });
+  rows.push(['处理来源', meta.label]);
+  table.innerHTML = rows.map(function (row) {
+    return '<tr><th>' + esc(row[0]) + '</th><td>' + row[1] + '</td></tr>';
+  }).join('');
+  table.hidden = false;
+
+  el('resultSummary').textContent = TYPES[r.type].name + ' · ' + r.country.name + ' · ' + LANGS[r.lang].name;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderRuleTable() {
+  var c = getCountry(state.countryKey);
+  var lang = state.lang;
+  var type = state.type;
+  var ch = state.channel;
+
+  var rows = [];
+  function add(name, rule, tag) { rows.push([name, rule, tag]); }
+
+  if (type === 'MONEY') {
+    if (ch === 'SPEECH') {
+      add('数字读法', '按语言 ' + LANGS[lang].name + '（' + lang + '）转写为本地读法', 'new');
+      var u = c.units[lang];
+      add('货币单位', u ? ('按「' + c.name + ' × ' + lang + '」取 ' + u.s + ' / ' + u.p + '，不随部署环境变化') : '当前国家未按该语言维护单位，输出不拼接单位', u ? 'new' : 'todo');
+      add('单复数', '金额去尾零后等于 1 用单数，0 / 小数 / 大于 1 用复数', 'new');
+      add('环境兜底', '仅在国家币种配置缺失时回退环境旧逻辑（原 locationId=2/3）', 'keep');
+    } else {
+      add('数字格式', '按短信 locale 格式化，不拼接货币单位', 'keep');
+      add('货币单位', '短信不拼接货币代码、符号或单位', 'keep');
+    }
+  } else if (type === 'DATE') {
+    if (ch === 'SPEECH') {
+      var DATE_FMT = {
+        id: 'tanggal {印尼语日} bulan {印尼语月} tahun {印尼语年}',
+        'es-MX': '{d} de {西语月} de {yyyy}', 'es-PE': '{d} de {西语月} de {yyyy}',
+        'es-CO': '{d} de {西语月} de {yyyy}', 'es-AR': '{d} de {西语月} de {yyyy}',
+        en: '{d} {月份} {yyyy}', 'en-IN': '{d} {月份} {yyyy}',
+        'en-US': '{月份} {d}, {yyyy}',
+        fil: 'ika-{d} ng {月份} {yyyy}',
+        hi: '{d} {印地语月} {yyyy}',
+        th: '{d} {泰语月} {yyyy}',
+        vi: 'ngày {d} tháng {m} năm {yyyy}',
+        zh: '{yyyy}年{m}月{d}日'
+      };
+      var inherited = (lang === 'id' || lang.indexOf('es-') === 0);
+      add('日期格式', (DATE_FMT[lang] || '待定义') + (inherited ? '（沿用现有口径）' : ''), inherited ? 'keep' : 'todo');
+      add('日 / 年 数字', lang === 'id' ? '日、年均转为印尼语读法（沿用现有口径）' : '日、年保留阿拉伯数字，由 TTS 自行朗读', lang === 'id' ? 'keep' : 'todo');
+    } else {
+      add('日期格式', '短信统一输出 yyyy-MM-dd', 'keep');
+    }
+  } else if (type === 'NUMBER') {
+    if (ch === 'SPEECH') {
+      add('数字读法', '按语言 ' + LANGS[lang].name + ' 转写为本地读法', 'new');
+      add('原环境口径', '现状仅 locationId=3（印尼）转印尼语，其余 location 原样返回', 'keep');
+    } else {
+      add('处理方式', '短信 NUMBER 原样返回', 'keep');
+    }
+  } else if (type === 'LINK') {
+    if (ch === 'SPEECH') {
+      var dot = DOT_WORD[lang];
+      add('话术', '按字符逐个朗读，字符间空格分隔', 'new');
+      add('"." 读法', dot ? '转写为 ' + dot.nat + '（' + lang + '）' : '该语言未配置，链接原样返回', dot ? 'new' : 'todo');
+      add('原环境口径', '现状为无处理分支、原样返回，本次为行为变更', 'keep');
+    } else {
+      add('短信', '普通链接字段原样返回；DYNAMIC_SHORT_URL 按商户国家生成短链', 'keep');
+    }
+  } else {
+    add('各链路', '原样返回，不进行格式化', 'keep');
+    add('替换映射', '文本替换映射按去除空格后比较，命中源值时替换为目标值', 'keep');
+  }
+
+  var TAG_TEXT = { keep: '沿用现有口径', new: '本次新增', todo: '待确认' };
+  el('ruleTable').innerHTML = rows.map(function (r) {
+    return '<tr><td style="width:120px">' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td>'
+      + '<td style="width:110px"><span class="rule-tag ' + r[2] + '">' + TAG_TEXT[r[2]] + '</span></td></tr>';
+  }).join('');
+}
+
+function renderMatrix() {
+  var head = '<tr><th style="text-align:left">国家地区</th><th style="text-align:left">货币代码</th>'
+    + ALL_LANGS.map(function (l) { return '<th>' + l + '</th>'; }).join('') + '</tr>';
+  var body = COUNTRIES.map(function (c) {
+    var tds = ALL_LANGS.map(function (l) {
+      var u = c.units[l];
+      if (!u) return '<td class="no">·</td>';
+      return '<td class="yes" title="' + esc(u.s + ' / ' + u.p) + '">✔</td>';
+    }).join('');
+    return '<tr><td style="text-align:left">' + esc(c.name) + '</td><td style="text-align:left" class="mono">' + c.currency + '</td>' + tds + '</tr>';
+  }).join('');
+  el('matrixTable').innerHTML = head + body;
+}
+
+function run() {
+  var v = el('valueInput').value;
+  var errBox = el('valueError');
+  if (String(v).trim() === '') {
+    errBox.hidden = false;
+    errBox.textContent = '请输入变量值';
+    el('valueInput').classList.add('invalid');
+    return;
+  }
+  errBox.hidden = true;
+  el('valueInput').classList.remove('invalid');
+
+  state.last = transcribe({
+    countryKey: state.countryKey,
+    lang: state.lang,
+    channel: state.channel,
+    type: state.type,
+    value: v
+  });
+  render();
+}
+
+/* ---------------- 事件绑定 ---------------- */
+function init() {
+  fillCountries();
+  refreshCountryHelp();
+  refreshLangs();
+  refreshTypeHelp();
+  refreshChannelHelp();
+  renderRuleTable();
+  renderMatrix();
+  render();
+
+  document.querySelectorAll('input[name="channel"]').forEach(function (rb) {
+    rb.addEventListener('change', function () {
+      if (!rb.checked) return;
+      state.channel = rb.value;
+      refreshChannelHelp();
+      renderRuleTable();
+    });
+  });
+
+  el('countrySelect').addEventListener('change', function () {
+    state.countryKey = this.value;
+    refreshCountryHelp();
+    refreshLangs();
+    renderRuleTable();
+  });
+
+  el('langSelect').addEventListener('change', function () {
+    state.lang = this.value;
+    refreshLangs();
+    renderRuleTable();
+  });
+
+  el('forceLang').addEventListener('change', function () {
+    state.force = this.checked;
+    refreshLangs();
+  });
+
+  el('typeSelect').addEventListener('change', function () {
+    state.type = this.value;
+    refreshTypeHelp();
+    renderRuleTable();
+  });
+
+  el('runBtn').addEventListener('click', run);
+  el('valueInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') run(); });
+  el('valueInput').addEventListener('input', function () {
+    el('valueError').hidden = true;
+    el('valueInput').classList.remove('invalid');
+  });
+
+  el('resetBtn').addEventListener('click', function () {
+    state.channel = 'SPEECH'; state.countryKey = 'ID'; state.lang = 'id';
+    state.force = false; state.type = 'MONEY'; state.last = null;
+    document.querySelector('input[name="channel"][value="SPEECH"]').checked = true;
+    el('forceLang').checked = false;
+    el('countrySelect').value = 'ID';
+    el('typeSelect').value = 'MONEY';
+    el('valueInput').value = '';
+    refreshCountryHelp(); refreshLangs(); refreshTypeHelp(); refreshChannelHelp();
+    renderRuleTable(); render();
+  });
+
+  el('romanBtn').addEventListener('click', function () {
+    var row = el('romanRow');
+    row.hidden = !row.hidden;
+    this.textContent = row.hidden ? '显示拉丁音译' : '隐藏拉丁音译';
+  });
+
+  el('copyBtn').addEventListener('click', function () {
+    if (!state.last || !state.last.out.nat) return;
+    var text = state.last.out.nat;
+    var done = function () {
+      var b = el('copyBtn'); var old = b.textContent;
+      b.textContent = '已复制'; setTimeout(function () { b.textContent = old; }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+    } else { fallbackCopy(text, done); }
+  });
+}
+
+function fallbackCopy(text, done) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { }
+  document.body.removeChild(ta);
+}
+
+init();
+</script>
+</body>
+</html>
