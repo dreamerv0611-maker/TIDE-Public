@@ -1058,7 +1058,7 @@ function transcribeRaw(opts) {
     }
     r.source = 'SMS_RULE';
     r.out = { nat: smsNum, rom: smsNum };
-    step('数字格式', '按 locale ' + lang + ' 格式化');
+    step('数字格式', '按 locale ' + lang + ' 格式化，千分位与小数点符号按当地习惯');
     step('货币单位', '短信不拼接货币代码、符号或单位');
     return r;
   }
@@ -1196,7 +1196,7 @@ function refreshCountryHelp() {
 function refreshTypeHelp() {
   var t = state.type;
   var tips = {
-    MONEY: '话术：数字读法跟随语言，货币单位跟随国家 + 语言；短信：按 locale 格式化数字，不拼单位。',
+    MONEY: '话术：数字读法跟随语言，货币单位跟随国家 + 语言；短信：按 locale 格式化数字，千分位与小数点符号按当地习惯，不拼单位。',
     DATE: '话术：按语言输出播报格式；短信：统一 yyyy-MM-dd。',
     NUMBER: '话术：按语言转为数字读法；短信：原样返回。',
     LINK: '各链路原样返回，仅做短链路由，不做转写。',
@@ -1322,7 +1322,7 @@ function renderRuleTable() {
       add('单复数', '金额去尾零后等于 1 用单数，0 / 小数 / 大于 1 用复数', 'new');
       add('环境兜底', '仅在国家币种配置缺失时回退环境旧逻辑（原 locationId=2/3）', 'keep');
     } else {
-      add('数字格式', '按短信 locale 格式化，不拼接货币单位', 'keep');
+      add('数字格式', '按短信 locale ' + lang + ' 格式化，千分位与小数点符号按当地习惯', 'keep');
       add('货币单位', '短信不拼接货币代码、符号或单位', 'keep');
     }
   } else if (type === 'DATE') {
